@@ -1,0 +1,50 @@
+
+{
+  "sessionState": {
+    "intent": {
+      "name": "PlanTrip",
+      "state": "InProgress",
+      "slots": {
+        "destination": {
+          "value": {
+            "interpretedValue": "Japan",
+            "originalValue": "Japan"
+          }
+        },
+        "travel_date": {
+          "value": {
+            "interpretedValue": "2026-08-15",
+            "originalValue": "August 15th"
+          }
+        },
+        "num_travelers": {
+          "value": {
+            "interpretedValue": "2",
+            "originalValue": "2"
+          }
+        },
+        "budget": {
+          "value": {
+            "interpretedValue": "$3000",
+            "originalValue": "3000 dollars"
+          }
+        },
+        "trip_style": {
+          "value": {
+            "interpretedValue": "adventure",
+            "originalValue": "adventure"
+          }
+        }
+      }
+    },
+    "sessionAttributes": {}
+  },
+  "inputTranscript": "Plan a trip to Japan",
+  "invocationSource": "FulfillmentCodeHook",
+  "bot": {
+    "name": "TravelPlannerBot",
+    "version": "DRAFT",
+    "localeId": "en_US"
+  }
+}
+
