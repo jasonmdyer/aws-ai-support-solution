@@ -35,7 +35,7 @@ End-to-end AI-powered travel planning assistant built on AWS using 20+ services 
 
 ## Project Phases
 
-- [ ] Phase 1: Core Chatbot (Lex + Lambda)
+- [x] Phase 1: Core Chatbot (Lex + Lambda)
 - [ ] Phase 2: Smart Travel Knowledge Base (Bedrock + RAG)
 - [ ] Phase 3: Sentiment + Entity Extraction (Comprehend)
 - [ ] Phase 4: Voice + Multilingual Support (Transcribe + Polly + Translate)
