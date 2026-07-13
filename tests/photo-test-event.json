@@ -1,0 +1,26 @@
+
+{
+  "sessionState": {
+    "intent": {
+      "name": "AnalyzePhoto",
+      "state": "InProgress",
+      "slots": {
+        "photo_key": {
+          "value": {
+            "interpretedValue": "himeji.jpg",
+            "originalValue": "himeji.jpg"
+          }
+        }
+      }
+    },
+    "sessionAttributes": {}
+  },
+  "inputTranscript": "Analyze my travel photo",
+  "invocationSource": "FulfillmentCodeHook",
+  "bot": {
+    "name": "TravelPlannerBot",
+    "version": "DRAFT",
+    "localeId": "en_US"
+  }
+}
+
