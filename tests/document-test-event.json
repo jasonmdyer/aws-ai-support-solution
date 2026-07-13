@@ -1,0 +1,26 @@
+
+{
+  "sessionState": {
+    "intent": {
+      "name": "AnalyzeDocument",
+      "state": "InProgress",
+      "slots": {
+        "document_key": {
+          "value": {
+            "interpretedValue": "reservation.jpg",
+            "originalValue": "reservation.jpg"
+          }
+        }
+      }
+    },
+    "sessionAttributes": {}
+  },
+  "inputTranscript": "Analyze my travel document",
+  "invocationSource": "FulfillmentCodeHook",
+  "bot": {
+    "name": "TravelPlannerBot",
+    "version": "DRAFT",
+    "localeId": "en_US"
+  }
+}
+
