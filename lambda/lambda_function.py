@@ -7,6 +7,7 @@ MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 REGION = "us-east-1"
 AUDIO_BUCKET = "travel-planner-audio"
 UPLOADS_BUCKET = "travel-planner-uploads-jmd"
+PERSONALIZE_CAMPAIGN_ARN = "arn:aws:personalize:us-east-1:975193805465:campaign/travel-recommendation-campaign"
 
 bedrock_agent = boto3.client("bedrock-agent-runtime", region_name=REGION)
 bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
@@ -16,6 +17,7 @@ polly_client = boto3.client("polly", region_name=REGION)
 s3_client = boto3.client("s3", region_name=REGION)
 textract_client = boto3.client("textract", region_name=REGION)
 rekognition_client = boto3.client("rekognition", region_name=REGION)
+personalize_runtime = boto3.client("personalize-runtime", region_name=REGION)
 
 # Map destinations to language codes for Translate
 DESTINATION_LANGUAGES = {
@@ -56,6 +58,23 @@ TRAVEL_PHRASES = [
 ]
 
 
+# ─── Phase 6: Personalize — Get recommendations for a user ───
+def get_recommendations(user_id):
+    """Get personalized destination recommendations for a user."""
+    try:
+        response = personalize_runtime.get_recommendations(
+            campaignArn=PERSONALIZE_CAMPAIGN_ARN,
+            userId=user_id,
+            numResults=5
+        )
+        recommendations = []
+        for item in response["itemList"]:
+            recommendations.append(item["itemId"])
+        return recommendations
+    except Exception as e:
+        return [f"ERROR: {str(e)}"]
+
+
 # ─── Phase 5: Rekognition — Identify landmarks from photos ───
 def analyze_image(bucket, key):
     """Detect labels/landmarks from an uploaded travel photo."""
@@ -77,7 +96,6 @@ def analyze_image(bucket, key):
             "confidence": round(label["Confidence"], 1)
         })
 
-    # Identify if any labels suggest a landmark or location
     landmark_keywords = ["landmark", "monument", "temple", "castle", "tower",
                          "bridge", "cathedral", "mosque", "shrine", "palace",
                          "statue", "ruins", "pyramid"]
@@ -104,7 +122,6 @@ def extract_document_text(bucket, key):
         }
     )
 
-    # Extract all lines of text
     lines = []
     for block in response["Blocks"]:
         if block["BlockType"] == "LINE":
@@ -112,7 +129,6 @@ def extract_document_text(bucket, key):
 
     extracted_text = "\n".join(lines)
 
-    # Use Claude to interpret the extracted text
     prompt = f"""Analyze this text extracted from a travel document and identify key travel details:
 {extracted_text}
 
@@ -328,6 +344,34 @@ def lambda_handler(event, context):
 
     user_input = event.get("inputTranscript", "")
 
+    # ─── Phase 6: Handle GetRecommendations intent ───
+    if intent_name == "GetRecommendations":
+        user_id = slots.get("user_id", {})
+        if user_id and user_id.get("value"):
+            user_id = user_id["value"]["interpretedValue"]
+        else:
+            user_id = "user_001"
+
+        recommendations = get_recommendations(user_id)
+
+        if recommendations and not any("ERROR" in str(r) for r in recommendations):
+            message = f"🌍 **Personalized Recommendations for you:**\n\n"
+            message += f"Based on your travel history, here are your top destinations:\n\n"
+            for i, rec in enumerate(recommendations, 1):
+                destination_name = rec.replace("-", " ").title()
+                message += f"{i}. **{destination_name}**\n"
+            message += f"\nWould you like me to plan a trip to any of these?"
+        else:
+            message = f"Debug info: {recommendations}"
+
+        return {
+            "sessionState": {
+                "dialogAction": {"type": "Close"},
+                "intent": {"name": "GetRecommendations", "state": "Fulfilled"}
+            },
+            "messages": [{"contentType": "PlainText", "content": message}]
+        }
+
     # ─── Phase 5: Handle AnalyzePhoto intent ───
     if intent_name == "AnalyzePhoto":
         s3_key = slots.get("photo_key", {})
@@ -343,17 +387,14 @@ def lambda_handler(event, context):
             }
 
         try:
-            # Analyze the image with Rekognition
             image_analysis = analyze_image(UPLOADS_BUCKET, s3_key)
 
-            # Build response
             labels_text = ", ".join([f"{l['name']} ({l['confidence']}%)" for l in image_analysis["labels"]])
             message = f"📸 **Photo Analysis:**\n\nI detected: {labels_text}\n"
 
             if image_analysis["landmarks"]:
                 message += f"\n🏛️ **Landmarks found:** {', '.join(image_analysis['landmarks'])}\n"
 
-                # Get travel info about the landmark
                 landmark_info = get_landmark_info(image_analysis["landmarks"], image_analysis["labels"])
                 if landmark_info:
                     message += f"\n📖 **Travel Info:**\n{landmark_info}"
@@ -384,7 +425,6 @@ def lambda_handler(event, context):
             }
 
         try:
-            # Extract text from document with Textract
             doc_analysis = extract_document_text(UPLOADS_BUCKET, doc_key)
             message = f"📄 **Document Analysis:**\n\n{doc_analysis}"
 
@@ -400,12 +440,10 @@ def lambda_handler(event, context):
         }
 
     # ─── Phase 1-4: Handle PlanTrip intent ───
-    # Phase 3: Analyze sentiment + entities
     analysis = None
     if user_input:
         analysis = analyze_user_input(user_input)
 
-    # Extract slot values
     destination = slots["destination"]["value"]["interpretedValue"]
     travel_date = slots["travel_date"]["value"]["interpretedValue"]
     num_travelers = slots["num_travelers"]["value"]["interpretedValue"]
@@ -416,7 +454,6 @@ def lambda_handler(event, context):
     else:
         trip_style = "general"
 
-    # Comprehend entity override
     if analysis and analysis["entities"]["locations"]:
         detected_location = analysis["entities"]["locations"][0]
         if destination.lower() in ["somewhere", "anywhere", ""]:
@@ -426,7 +463,6 @@ def lambda_handler(event, context):
         sentiment = analysis["sentiment"] if analysis else None
         result = get_travel_info(destination, travel_date, num_travelers, budget, trip_style, sentiment)
 
-        # Sentiment-aware prefix
         if analysis and analysis["sentiment"] == "NEGATIVE":
             message = "I understand planning can be stressful — let me help make this easy for you!\n\n" + result
         elif analysis and analysis["sentiment"] == "POSITIVE":
@@ -446,6 +482,16 @@ def lambda_handler(event, context):
         audio_url = generate_audio(result, destination)
         if audio_url:
             message += f"\n\n🎧 **Listen to your itinerary:** {audio_url}"
+
+        # Phase 6: Add personalized recommendations
+        session_user = event.get("sessionState", {}).get("sessionAttributes", {}).get("user_id", "user_001")
+        recommendations = get_recommendations(session_user)
+        if recommendations and not any("ERROR" in str(r) for r in recommendations):
+            rec_section = "\n\n---\n## 🌍 You Might Also Like\n"
+            for rec in recommendations[:3]:
+                if rec.lower() != destination.lower():
+                    rec_section += f"- **{rec.replace('-', ' ').title()}**\n"
+            message += rec_section
 
     except Exception as e:
         message = f"ERROR: {str(e)}"
