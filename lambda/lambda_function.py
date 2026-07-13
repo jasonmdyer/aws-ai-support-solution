@@ -1,6 +1,7 @@
 
 import json
 import boto3
+import base64
 
 KNOWLEDGE_BASE_ID = "UNCTZY1UHS"
 MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -8,6 +9,9 @@ REGION = "us-east-1"
 AUDIO_BUCKET = "travel-planner-audio"
 UPLOADS_BUCKET = "travel-planner-uploads-jmd"
 PERSONALIZE_CAMPAIGN_ARN = "arn:aws:personalize:us-east-1:975193805465:campaign/travel-recommendation-campaign"
+GUARDRAIL_ID = "c63g8amj9rxj"
+GUARDRAIL_VERSION = "DRAFT"
+KMS_KEY_ID = "f8239126-96aa-4058-8347-3b31d5d97fe3"
 
 bedrock_agent = boto3.client("bedrock-agent-runtime", region_name=REGION)
 bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
@@ -18,6 +22,7 @@ s3_client = boto3.client("s3", region_name=REGION)
 textract_client = boto3.client("textract", region_name=REGION)
 rekognition_client = boto3.client("rekognition", region_name=REGION)
 personalize_runtime = boto3.client("personalize-runtime", region_name=REGION)
+kms_client = boto3.client("kms", region_name=REGION)
 
 # Map destinations to language codes for Translate
 DESTINATION_LANGUAGES = {
@@ -58,6 +63,52 @@ TRAVEL_PHRASES = [
 ]
 
 
+# ─── Phase 7: Guardrails — Check content safety ───
+def apply_guardrail(text, source="OUTPUT"):
+    """Apply Bedrock Guardrail to check content for safety violations."""
+    try:
+        response = bedrock_runtime.apply_guardrail(
+            guardrailIdentifier=GUARDRAIL_ID,
+            guardrailVersion=GUARDRAIL_VERSION,
+            source=source,
+            content=[{"text": {"text": text}}]
+        )
+        action = response.get("action", "NONE")
+        if action == "GUARDRAIL_INTERVENED":
+            blocked_response = "I'm sorry, I can't help with that request. Please ask about legitimate travel planning topics."
+            return {"blocked": True, "message": blocked_response}
+        return {"blocked": False, "message": text}
+    except Exception as e:
+        return {"blocked": False, "message": text}
+
+
+# ─── Phase 7: KMS — Encrypt sensitive data ───
+def encrypt_pii(plaintext):
+    """Encrypt sensitive user data (passport numbers, credit cards, etc.)."""
+    try:
+        response = kms_client.encrypt(
+            KeyId=KMS_KEY_ID,
+            Plaintext=plaintext.encode("utf-8")
+        )
+        encrypted = base64.b64encode(response["CiphertextBlob"]).decode("utf-8")
+        return encrypted
+    except Exception as e:
+        return None
+
+
+def decrypt_pii(encrypted_text):
+    """Decrypt sensitive user data."""
+    try:
+        ciphertext = base64.b64decode(encrypted_text)
+        response = kms_client.decrypt(
+            CiphertextBlob=ciphertext,
+            KeyId=KMS_KEY_ID
+        )
+        return response["Plaintext"].decode("utf-8")
+    except Exception as e:
+        return None
+
+
 # ─── Phase 6: Personalize — Get recommendations for a user ───
 def get_recommendations(user_id):
     """Get personalized destination recommendations for a user."""
@@ -72,7 +123,7 @@ def get_recommendations(user_id):
             recommendations.append(item["itemId"])
         return recommendations
     except Exception as e:
-        return [f"ERROR: {str(e)}"]
+        return None
 
 
 # ─── Phase 5: Rekognition — Identify landmarks from photos ───
@@ -344,6 +395,18 @@ def lambda_handler(event, context):
 
     user_input = event.get("inputTranscript", "")
 
+    # ─── Phase 7: Check user input with Guardrail ───
+    if user_input:
+        guardrail_check = apply_guardrail(user_input, source="INPUT")
+        if guardrail_check["blocked"]:
+            return {
+                "sessionState": {
+                    "dialogAction": {"type": "Close"},
+                    "intent": {"name": intent_name, "state": "Fulfilled"}
+                },
+                "messages": [{"contentType": "PlainText", "content": guardrail_check["message"]}]
+            }
+
     # ─── Phase 6: Handle GetRecommendations intent ───
     if intent_name == "GetRecommendations":
         user_id = slots.get("user_id", {})
@@ -354,7 +417,7 @@ def lambda_handler(event, context):
 
         recommendations = get_recommendations(user_id)
 
-        if recommendations and not any("ERROR" in str(r) for r in recommendations):
+        if recommendations:
             message = f"🌍 **Personalized Recommendations for you:**\n\n"
             message += f"Based on your travel history, here are your top destinations:\n\n"
             for i, rec in enumerate(recommendations, 1):
@@ -362,7 +425,7 @@ def lambda_handler(event, context):
                 message += f"{i}. **{destination_name}**\n"
             message += f"\nWould you like me to plan a trip to any of these?"
         else:
-            message = f"Debug info: {recommendations}"
+            message = "I don't have enough travel history to make recommendations yet. Tell me where you'd like to go!"
 
         return {
             "sessionState": {
@@ -439,6 +502,34 @@ def lambda_handler(event, context):
             "messages": [{"contentType": "PlainText", "content": message}]
         }
 
+    # ─── Phase 7: Handle EncryptPII intent ───
+    if intent_name == "EncryptPII":
+        pii_data = slots.get("pii_data", {})
+        if pii_data and pii_data.get("value"):
+            pii_data = pii_data["value"]["interpretedValue"]
+        else:
+            return {
+                "sessionState": {
+                    "dialogAction": {"type": "Close"},
+                    "intent": {"name": "EncryptPII", "state": "Fulfilled"}
+                },
+                "messages": [{"contentType": "PlainText", "content": "Please provide the sensitive data to encrypt."}]
+            }
+
+        encrypted = encrypt_pii(pii_data)
+        if encrypted:
+            message = f"🔒 **Data Encrypted Successfully**\n\nYour sensitive information has been securely encrypted using AWS KMS.\n\n**Encrypted token:** `{encrypted[:50]}...`\n\n✅ Original data is NOT stored — only the encrypted version is retained."
+        else:
+            message = "ERROR: Unable to encrypt data. Please try again."
+
+        return {
+            "sessionState": {
+                "dialogAction": {"type": "Close"},
+                "intent": {"name": "EncryptPII", "state": "Fulfilled"}
+            },
+            "messages": [{"contentType": "PlainText", "content": message}]
+        }
+
     # ─── Phase 1-4: Handle PlanTrip intent ───
     analysis = None
     if user_input:
@@ -463,6 +554,11 @@ def lambda_handler(event, context):
         sentiment = analysis["sentiment"] if analysis else None
         result = get_travel_info(destination, travel_date, num_travelers, budget, trip_style, sentiment)
 
+        # Phase 7: Check AI output with Guardrail
+        guardrail_output = apply_guardrail(result, source="OUTPUT")
+        if guardrail_output["blocked"]:
+            result = guardrail_output["message"]
+
         if analysis and analysis["sentiment"] == "NEGATIVE":
             message = "I understand planning can be stressful — let me help make this easy for you!\n\n" + result
         elif analysis and analysis["sentiment"] == "POSITIVE":
@@ -486,7 +582,7 @@ def lambda_handler(event, context):
         # Phase 6: Add personalized recommendations
         session_user = event.get("sessionState", {}).get("sessionAttributes", {}).get("user_id", "user_001")
         recommendations = get_recommendations(session_user)
-        if recommendations and not any("ERROR" in str(r) for r in recommendations):
+        if recommendations:
             rec_section = "\n\n---\n## 🌍 You Might Also Like\n"
             for rec in recommendations[:3]:
                 if rec.lower() != destination.lower():
