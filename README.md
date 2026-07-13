@@ -41,7 +41,7 @@ End-to-end AI-powered travel planning assistant built on AWS using 20+ services 
 - [x] Phase 4: Voice + Multilingual Support (Transcribe + Polly + Translate)
 - [x] Phase 5: Document + Image Processing (Textract + Rekognition)
 - [x] Phase 6: Personalized Recommendations (Personalize)
-- [ ] Phase 7: Security + Responsible AI (Guardrails + IAM + KMS + A2I)
+- [x] Phase 7: Security + Responsible AI (Guardrails + IAM + KMS + A2I)
 - [ ] Phase 8: Monitoring + Orchestration (CloudWatch + Step Functions + SageMaker)
 - [ ] Phase 9: Internal Knowledge Assistant (Amazon Q Business)
 
