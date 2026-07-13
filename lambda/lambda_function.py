@@ -6,6 +6,7 @@ KNOWLEDGE_BASE_ID = "UNCTZY1UHS"
 MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 REGION = "us-east-1"
 AUDIO_BUCKET = "travel-planner-audio"
+UPLOADS_BUCKET = "travel-planner-uploads-jmd"
 
 bedrock_agent = boto3.client("bedrock-agent-runtime", region_name=REGION)
 bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
@@ -13,6 +14,8 @@ comprehend = boto3.client("comprehend", region_name=REGION)
 translate_client = boto3.client("translate", region_name=REGION)
 polly_client = boto3.client("polly", region_name=REGION)
 s3_client = boto3.client("s3", region_name=REGION)
+textract_client = boto3.client("textract", region_name=REGION)
+rekognition_client = boto3.client("rekognition", region_name=REGION)
 
 # Map destinations to language codes for Translate
 DESTINATION_LANGUAGES = {
@@ -53,6 +56,130 @@ TRAVEL_PHRASES = [
 ]
 
 
+# ─── Phase 5: Rekognition — Identify landmarks from photos ───
+def analyze_image(bucket, key):
+    """Detect labels/landmarks from an uploaded travel photo."""
+    response = rekognition_client.detect_labels(
+        Image={
+            "S3Object": {
+                "Bucket": bucket,
+                "Name": key
+            }
+        },
+        MaxLabels=15,
+        MinConfidence=75
+    )
+
+    labels = []
+    for label in response["Labels"]:
+        labels.append({
+            "name": label["Name"],
+            "confidence": round(label["Confidence"], 1)
+        })
+
+    # Identify if any labels suggest a landmark or location
+    landmark_keywords = ["landmark", "monument", "temple", "castle", "tower",
+                         "bridge", "cathedral", "mosque", "shrine", "palace",
+                         "statue", "ruins", "pyramid"]
+    detected_landmarks = []
+    for label in labels:
+        if any(keyword in label["name"].lower() for keyword in landmark_keywords):
+            detected_landmarks.append(label["name"])
+
+    return {
+        "labels": labels,
+        "landmarks": detected_landmarks
+    }
+
+
+# ─── Phase 5: Textract — Extract text from travel documents ───
+def extract_document_text(bucket, key):
+    """Extract text from boarding passes, passports, hotel confirmations."""
+    response = textract_client.detect_document_text(
+        Document={
+            "S3Object": {
+                "Bucket": bucket,
+                "Name": key
+            }
+        }
+    )
+
+    # Extract all lines of text
+    lines = []
+    for block in response["Blocks"]:
+        if block["BlockType"] == "LINE":
+            lines.append(block["Text"])
+
+    extracted_text = "\n".join(lines)
+
+    # Use Claude to interpret the extracted text
+    prompt = f"""Analyze this text extracted from a travel document and identify key travel details:
+{extracted_text}
+
+Extract and organize:
+- Document type (boarding pass, hotel confirmation, passport, visa, etc.)
+- Traveler name
+- Destination
+- Dates (departure, arrival, check-in, check-out)
+- Flight/booking numbers
+- Any other relevant travel details
+
+Format the response clearly."""
+
+    body = json.dumps({
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 500,
+        "messages": [{"role": "user", "content": prompt}]
+    })
+    model_response = bedrock_runtime.invoke_model(
+        modelId=MODEL_ID,
+        contentType="application/json",
+        accept="application/json",
+        body=body
+    )
+    response_body = json.loads(model_response["body"].read())
+    return response_body["content"][0]["text"]
+
+
+# ─── Phase 5: Get landmark info from KB ───
+def get_landmark_info(landmarks, labels):
+    """Use detected landmarks/labels to query KB for travel info."""
+    search_terms = landmarks if landmarks else [l["name"] for l in labels[:5]]
+    query = f"Tell me about these travel destinations or landmarks: {', '.join(search_terms)}"
+
+    retrieve_response = bedrock_agent.retrieve(
+        knowledgeBaseId=KNOWLEDGE_BASE_ID,
+        retrievalQuery={"text": query},
+        retrievalConfiguration={"vectorSearchConfiguration": {"numberOfResults": 3}}
+    )
+
+    chunks = []
+    for result in retrieve_response.get("retrievalResults", []):
+        text = result.get("content", {}).get("text", "")
+        if text:
+            chunks.append(text)
+
+    if not chunks:
+        return None
+
+    context = " ".join(chunks)
+    prompt = f"Based on this travel info: {context} --- The user uploaded a photo that contains: {', '.join(search_terms)}. Provide helpful travel tips and information about what they're looking at."
+
+    body = json.dumps({
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 500,
+        "messages": [{"role": "user", "content": prompt}]
+    })
+    model_response = bedrock_runtime.invoke_model(
+        modelId=MODEL_ID,
+        contentType="application/json",
+        accept="application/json",
+        body=body
+    )
+    response_body = json.loads(model_response["body"].read())
+    return response_body["content"][0]["text"]
+
+
 # ─── Phase 4: Translate — Get useful phrases in destination language ───
 def get_translated_phrases(destination):
     """Translate common travel phrases to the destination's language."""
@@ -86,7 +213,6 @@ def get_translated_phrases(destination):
 # ─── Phase 4: Polly — Convert itinerary to audio ───
 def generate_audio(text, destination):
     """Convert itinerary text to speech and save to S3."""
-    # Trim text to Polly's limit (3000 chars for synthesize_speech)
     clean_text = text[:2900].replace("#", "").replace("*", "").replace("|", "")
 
     try:
@@ -97,7 +223,6 @@ def generate_audio(text, destination):
             Engine="standard"
         )
 
-        # Save audio to S3
         audio_key = f"itineraries/{destination.lower().replace(' ', '-')}-itinerary.mp3"
         s3_client.put_object(
             Bucket=AUDIO_BUCKET,
@@ -198,10 +323,83 @@ def get_travel_info(destination, travel_date, num_travelers, budget, trip_style,
 # ─── Lambda Handler ───
 def lambda_handler(event, context):
     intent = event["sessionState"]["intent"]
+    intent_name = intent["name"]
     slots = intent["slots"]
 
     user_input = event.get("inputTranscript", "")
 
+    # ─── Phase 5: Handle AnalyzePhoto intent ───
+    if intent_name == "AnalyzePhoto":
+        s3_key = slots.get("photo_key", {})
+        if s3_key and s3_key.get("value"):
+            s3_key = s3_key["value"]["interpretedValue"]
+        else:
+            return {
+                "sessionState": {
+                    "dialogAction": {"type": "Close"},
+                    "intent": {"name": "AnalyzePhoto", "state": "Fulfilled"}
+                },
+                "messages": [{"contentType": "PlainText", "content": "Please provide the filename of your uploaded photo."}]
+            }
+
+        try:
+            # Analyze the image with Rekognition
+            image_analysis = analyze_image(UPLOADS_BUCKET, s3_key)
+
+            # Build response
+            labels_text = ", ".join([f"{l['name']} ({l['confidence']}%)" for l in image_analysis["labels"]])
+            message = f"📸 **Photo Analysis:**\n\nI detected: {labels_text}\n"
+
+            if image_analysis["landmarks"]:
+                message += f"\n🏛️ **Landmarks found:** {', '.join(image_analysis['landmarks'])}\n"
+
+                # Get travel info about the landmark
+                landmark_info = get_landmark_info(image_analysis["landmarks"], image_analysis["labels"])
+                if landmark_info:
+                    message += f"\n📖 **Travel Info:**\n{landmark_info}"
+
+        except Exception as e:
+            message = f"ERROR analyzing photo: {str(e)}"
+
+        return {
+            "sessionState": {
+                "dialogAction": {"type": "Close"},
+                "intent": {"name": "AnalyzePhoto", "state": "Fulfilled"}
+            },
+            "messages": [{"contentType": "PlainText", "content": message}]
+        }
+
+    # ─── Phase 5: Handle AnalyzeDocument intent ───
+    if intent_name == "AnalyzeDocument":
+        doc_key = slots.get("document_key", {})
+        if doc_key and doc_key.get("value"):
+            doc_key = doc_key["value"]["interpretedValue"]
+        else:
+            return {
+                "sessionState": {
+                    "dialogAction": {"type": "Close"},
+                    "intent": {"name": "AnalyzeDocument", "state": "Fulfilled"}
+                },
+                "messages": [{"contentType": "PlainText", "content": "Please provide the filename of your uploaded document."}]
+            }
+
+        try:
+            # Extract text from document with Textract
+            doc_analysis = extract_document_text(UPLOADS_BUCKET, doc_key)
+            message = f"📄 **Document Analysis:**\n\n{doc_analysis}"
+
+        except Exception as e:
+            message = f"ERROR analyzing document: {str(e)}"
+
+        return {
+            "sessionState": {
+                "dialogAction": {"type": "Close"},
+                "intent": {"name": "AnalyzeDocument", "state": "Fulfilled"}
+            },
+            "messages": [{"contentType": "PlainText", "content": message}]
+        }
+
+    # ─── Phase 1-4: Handle PlanTrip intent ───
     # Phase 3: Analyze sentiment + entities
     analysis = None
     if user_input:
