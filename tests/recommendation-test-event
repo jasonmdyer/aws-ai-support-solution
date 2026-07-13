@@ -1,0 +1,26 @@
+
+{
+  "sessionState": {
+    "intent": {
+      "name": "GetRecommendations",
+      "state": "InProgress",
+      "slots": {
+        "user_id": {
+          "value": {
+            "interpretedValue": "user_001",
+            "originalValue": "user_001"
+          }
+        }
+      }
+    },
+    "sessionAttributes": {}
+  },
+  "inputTranscript": "What destinations do you recommend for me",
+  "invocationSource": "FulfillmentCodeHook",
+  "bot": {
+    "name": "TravelPlannerBot",
+    "version": "DRAFT",
+    "localeId": "en_US"
+  }
+}
+
