@@ -1,20 +1,21 @@
+
 {
   "sessionState": {
     "intent": {
-      "name": "GetRecommendations",
+      "name": "AnalyzeDocument",
       "state": "InProgress",
       "slots": {
-        "user_id": {
+        "document_key": {
           "value": {
-            "interpretedValue": "user_001",
-            "originalValue": "user_001"
+            "interpretedValue": "reservation.jpg",
+            "originalValue": "reservation.jpg"
           }
         }
       }
     },
     "sessionAttributes": {}
   },
-  "inputTranscript": "What destinations do you recommend for me",
+  "inputTranscript": "Analyze my travel document",
   "invocationSource": "FulfillmentCodeHook",
   "bot": {
     "name": "TravelPlannerBot",
@@ -22,3 +23,4 @@
     "localeId": "en_US"
   }
 }
+
