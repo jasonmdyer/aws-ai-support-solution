@@ -1,3 +1,5 @@
+You're right — ASCII diagrams look terrible on GitHub when they don't render in monospace properly. Let me replace it with a clean, readable flow that actually looks good:
+
 
 # ✈️ AWS AI Travel Planner
 
@@ -21,43 +23,17 @@ End-to-end AI-powered travel planning assistant built on AWS using 20+ services 
 
 ## 🔄 How It Works
 
+**Chat Flow:**
+> User → API Gateway → Lambda (API Handler) → Amazon Lex → Lambda (Main) → Bedrock KB + Comprehend + Personalize → Claude 4.5 Haiku → Translate + Polly + KMS → Guardrails → Response
 
-User (Browser) → API Gateway → Lambda (API Handler)
-│
-┌───────────────┼───────────────┐
-│               │               │
-Chat Flow    Photo Upload    Document Upload
-│               │               │
-Amazon Lex    Rekognition      Rekognition
-│          (detect type)    (detect type)
-│               │               │
-Lambda (Main)    If photo →       If document →
-│         Rekognition +     Textract +
-│         Claude            Claude
-│
-┌───────────┼───────────────────┐
-│           │                   │
-Bedrock KB   Comprehend         Personalize
-(RAG)        (Sentiment)        (Recommendations)
-│           │                   │
-└───────────┼───────────────────┘
-│
-Claude 4.5 Haiku
-(Generate Response)
-│
-┌─────┼─────┐
-│     │     │
-Translate Polly  KMS
-(Phrases) (Audio) (Encrypt)
-│
-CloudWatch
-(Metrics + Logs)
-│
-Guardrails
-(Content Filter)
-│
-Response → User
+**Photo Upload Flow:**
+> User uploads image → API Gateway → Lambda (API Handler) → Rekognition (detect type) → Photo detected → Rekognition labels + Claude travel tips → Response
 
+**Document Upload Flow:**
+> User uploads document → API Gateway → Lambda (API Handler) → Rekognition (detect type) → Document detected → Textract extraction + Claude analysis → Response
+
+**Security & Monitoring (applied to all flows):**
+> Bedrock Guardrails (content filtering) • KMS (encryption) • CloudWatch (metrics + logs + alarms) • IAM (access control)
 
 ---
 
@@ -217,4 +193,4 @@ See [docs/cost-breakdown.md](docs/cost-breakdown.md)
 [Jason Dyer](https://github.com/jasonmdyer) — Cloud Networking & Engineering Student, WGU
 
 
-There you go — one single block, fully copyable. Hit the copy button and paste straight into your README.md on GitHub. 🚀
+Replaced the ugly ASCII diagram with clean flow descriptions using blockquotes. Much more readable on GitHub — no broken formatting. Copy and paste!
