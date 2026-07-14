@@ -2,6 +2,12 @@
 import json
 import boto3
 import base64
+import time
+import logging
+
+# ─── Configure structured logging ───
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 KNOWLEDGE_BASE_ID = "UNCTZY1UHS"
 MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -23,6 +29,7 @@ textract_client = boto3.client("textract", region_name=REGION)
 rekognition_client = boto3.client("rekognition", region_name=REGION)
 personalize_runtime = boto3.client("personalize-runtime", region_name=REGION)
 kms_client = boto3.client("kms", region_name=REGION)
+cloudwatch = boto3.client("cloudwatch", region_name=REGION)
 
 # Map destinations to language codes for Translate
 DESTINATION_LANGUAGES = {
@@ -63,6 +70,26 @@ TRAVEL_PHRASES = [
 ]
 
 
+# ─── Phase 8: CloudWatch — Publish custom metrics ───
+def publish_metric(metric_name, value, unit="Count", dimensions=None):
+    """Publish a custom metric to CloudWatch."""
+    try:
+        metric_data = {
+            "MetricName": metric_name,
+            "Value": value,
+            "Unit": unit
+        }
+        if dimensions:
+            metric_data["Dimensions"] = dimensions
+
+        cloudwatch.put_metric_data(
+            Namespace="TravelPlannerBot",
+            MetricData=[metric_data]
+        )
+    except Exception as e:
+        logger.error(f"Failed to publish metric {metric_name}: {str(e)}")
+
+
 # ─── Phase 7: Guardrails — Check content safety ───
 def apply_guardrail(text, source="OUTPUT"):
     """Apply Bedrock Guardrail to check content for safety violations."""
@@ -75,6 +102,7 @@ def apply_guardrail(text, source="OUTPUT"):
         )
         action = response.get("action", "NONE")
         if action == "GUARDRAIL_INTERVENED":
+            publish_metric("GuardrailBlocked", 1, dimensions=[{"Name": "Source", "Value": source}])
             blocked_response = "I'm sorry, I can't help with that request. Please ask about legitimate travel planning topics."
             return {"blocked": True, "message": blocked_response}
         return {"blocked": False, "message": text}
@@ -389,16 +417,33 @@ def get_travel_info(destination, travel_date, num_travelers, budget, trip_style,
 
 # ─── Lambda Handler ───
 def lambda_handler(event, context):
+    start_time = time.time()
     intent = event["sessionState"]["intent"]
     intent_name = intent["name"]
     slots = intent["slots"]
 
     user_input = event.get("inputTranscript", "")
 
+    # Phase 8: Log incoming request
+    logger.info(json.dumps({
+        "event": "REQUEST_RECEIVED",
+        "intent": intent_name,
+        "user_input": user_input,
+        "request_id": context.aws_request_id
+    }))
+
+    # Phase 8: Publish intent invocation metric
+    publish_metric("IntentInvocations", 1, dimensions=[{"Name": "IntentName", "Value": intent_name}])
+
     # ─── Phase 7: Check user input with Guardrail ───
     if user_input:
         guardrail_check = apply_guardrail(user_input, source="INPUT")
         if guardrail_check["blocked"]:
+            logger.warning(json.dumps({
+                "event": "GUARDRAIL_BLOCKED_INPUT",
+                "intent": intent_name,
+                "user_input": user_input
+            }))
             return {
                 "sessionState": {
                     "dialogAction": {"type": "Close"},
@@ -426,6 +471,11 @@ def lambda_handler(event, context):
             message += f"\nWould you like me to plan a trip to any of these?"
         else:
             message = "I don't have enough travel history to make recommendations yet. Tell me where you'd like to go!"
+
+        # Phase 8: Log response time
+        duration = round((time.time() - start_time) * 1000)
+        publish_metric("ResponseTime", duration, unit="Milliseconds", dimensions=[{"Name": "IntentName", "Value": intent_name}])
+        logger.info(json.dumps({"event": "REQUEST_COMPLETED", "intent": intent_name, "duration_ms": duration}))
 
         return {
             "sessionState": {
@@ -464,6 +514,13 @@ def lambda_handler(event, context):
 
         except Exception as e:
             message = f"ERROR analyzing photo: {str(e)}"
+            publish_metric("Errors", 1, dimensions=[{"Name": "IntentName", "Value": intent_name}])
+            logger.error(json.dumps({"event": "ERROR", "intent": intent_name, "error": str(e)}))
+
+        # Phase 8: Log response time
+        duration = round((time.time() - start_time) * 1000)
+        publish_metric("ResponseTime", duration, unit="Milliseconds", dimensions=[{"Name": "IntentName", "Value": intent_name}])
+        logger.info(json.dumps({"event": "REQUEST_COMPLETED", "intent": intent_name, "duration_ms": duration}))
 
         return {
             "sessionState": {
@@ -493,6 +550,13 @@ def lambda_handler(event, context):
 
         except Exception as e:
             message = f"ERROR analyzing document: {str(e)}"
+            publish_metric("Errors", 1, dimensions=[{"Name": "IntentName", "Value": intent_name}])
+            logger.error(json.dumps({"event": "ERROR", "intent": intent_name, "error": str(e)}))
+
+        # Phase 8: Log response time
+        duration = round((time.time() - start_time) * 1000)
+        publish_metric("ResponseTime", duration, unit="Milliseconds", dimensions=[{"Name": "IntentName", "Value": intent_name}])
+        logger.info(json.dumps({"event": "REQUEST_COMPLETED", "intent": intent_name, "duration_ms": duration}))
 
         return {
             "sessionState": {
@@ -522,6 +586,11 @@ def lambda_handler(event, context):
         else:
             message = "ERROR: Unable to encrypt data. Please try again."
 
+        # Phase 8: Log response time
+        duration = round((time.time() - start_time) * 1000)
+        publish_metric("ResponseTime", duration, unit="Milliseconds", dimensions=[{"Name": "IntentName", "Value": intent_name}])
+        logger.info(json.dumps({"event": "REQUEST_COMPLETED", "intent": intent_name, "duration_ms": duration}))
+
         return {
             "sessionState": {
                 "dialogAction": {"type": "Close"},
@@ -549,6 +618,9 @@ def lambda_handler(event, context):
         detected_location = analysis["entities"]["locations"][0]
         if destination.lower() in ["somewhere", "anywhere", ""]:
             destination = detected_location
+
+    # Phase 8: Log destination metrics
+    publish_metric("DestinationRequests", 1, dimensions=[{"Name": "Destination", "Value": destination}])
 
     try:
         sentiment = analysis["sentiment"] if analysis else None
@@ -589,8 +661,28 @@ def lambda_handler(event, context):
                     rec_section += f"- **{rec.replace('-', ' ').title()}**\n"
             message += rec_section
 
+        # Phase 8: Publish success metric
+        publish_metric("SuccessfulTrips", 1, dimensions=[{"Name": "Destination", "Value": destination}])
+
+        # Phase 8: Log sentiment distribution
+        if analysis:
+            publish_metric("SentimentDistribution", 1, dimensions=[{"Name": "Sentiment", "Value": analysis["sentiment"]}])
+
     except Exception as e:
         message = f"ERROR: {str(e)}"
+        publish_metric("Errors", 1, dimensions=[{"Name": "IntentName", "Value": intent_name}])
+        logger.error(json.dumps({"event": "ERROR", "intent": intent_name, "error": str(e)}))
+
+    # Phase 8: Log total response time
+    duration = round((time.time() - start_time) * 1000)
+    publish_metric("ResponseTime", duration, unit="Milliseconds", dimensions=[{"Name": "IntentName", "Value": intent_name}])
+    logger.info(json.dumps({
+        "event": "REQUEST_COMPLETED",
+        "intent": intent_name,
+        "destination": destination,
+        "duration_ms": duration,
+        "sentiment": analysis["sentiment"] if analysis else "UNKNOWN"
+    }))
 
     return {
         "sessionState": {
