@@ -11,7 +11,9 @@ End-to-end AI-powered travel planning assistant built on AWS using 20+ services 
 
 ## 📸 Screenshots
 
-<!-- Add screenshots here -->
+![Trip Planning](screenshots/chat-trip-planning.png)
+![Photo Analysis](screenshots/photo-analysis.png)
+![Document Scan](screenshots/document-scan.png)
 
 ---
 
