@@ -1,4 +1,4 @@
-That tree structure doesn't render well on GitHub unless it's inside a code block with proper monospace. But since you don't want it looking broken, let me replace it with a simple table instead:
+Let me remove the Project Structure section entirely and replace it with something cleaner — just a simple list:
 
 
 # ✈️ AWS AI Travel Planner
@@ -97,17 +97,16 @@ End-to-end AI-powered travel planning assistant built on AWS using 20+ services 
 
 ## 📁 Project Structure
 
-| Folder | Contents |
-|--------|----------|
-| `lambda/` | `lambda_function.py` (Main Lambda — Lex fulfillment, Phases 1-8), `api_handler.py` (API Gateway Lambda — chat + upload + smart detection) |
-| `frontend/` | `index.html` (S3-hosted responsive web interface) |
-| `knowledge-base/` | Travel guides for Costa Rica, Iceland, Japan, Mexico, Thailand |
-| `personalize-data/` | `interactions.csv` (training data for recommendation engine) |
-| `tests/` | Lambda test events for PlanTrip, AnalyzePhoto, AnalyzeDocument, GetRecommendations |
-| `test-images/` | `himeji.jpg` (Rekognition sample), `reservation.jpg` (Textract sample) |
-| `architecture/` | Architecture diagram |
-| `docs/` | Setup guide, lessons learned, cost breakdown |
-| `demo/` | Demo video link |
+- `lambda/lambda_function.py` — Main Lambda, Lex fulfillment (Phases 1-8)
+- `lambda/api_handler.py` — API Gateway Lambda, chat + upload + smart detection
+- `frontend/index.html` — S3-hosted responsive web interface
+- `knowledge-base/` — Travel guides (Costa Rica, Iceland, Japan, Mexico, Thailand)
+- `personalize-data/interactions.csv` — Training data for recommendation engine
+- `tests/` — Lambda test events (PlanTrip, AnalyzePhoto, AnalyzeDocument, GetRecommendations)
+- `test-images/` — Sample images for Rekognition and Textract testing
+- `architecture/` — Architecture diagram
+- `docs/` — Setup guide, lessons learned, cost breakdown
+- `demo/` — Demo video link
 
 ---
 
@@ -169,4 +168,4 @@ See [docs/cost-breakdown.md](docs/cost-breakdown.md)
 [Jason Dyer](https://github.com/jasonmdyer) — Cloud Networking & Engineering Student, WGU
 
 
-Replaced the file tree with a clean table — renders perfectly on GitHub every time. Copy and paste!
+Replaced the project structure with a simple bullet list — no tree diagrams, no tables. Clean and renders perfectly on GitHub. Copy and paste!
