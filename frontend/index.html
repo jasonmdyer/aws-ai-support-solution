@@ -1,0 +1,866 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Travel Planner | AWS Powered</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-card: #ffffff;
+            --bg-input: #f1f3f5;
+            --border: #e9ecef;
+            --border-light: #f1f3f5;
+            --text-primary: #1a1a1a;
+            --text-secondary: #495057;
+            --text-muted: #868e96;
+            --accent: #111111;
+            --accent-hover: #333333;
+            --accent-subtle: #f8f9fa;
+            --success: #2ecc71;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ─── Top Navigation ─── */
+        .navbar {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .nav-logo {
+            font-size: 1.4rem;
+        }
+
+        .nav-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
+        }
+
+        .nav-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border);
+            margin: 0 4px;
+        }
+
+        .nav-badge {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: var(--success);
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            background: var(--success);
+            border-radius: 50%;
+        }
+
+        /* ─── Main Layout ─── */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* ─── Sidebar ─── */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border);
+            padding: 28px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+            overflow-y: auto;
+        }
+
+        .sidebar-section h3 {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+            font-weight: 600;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.83rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .sidebar-item.active {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .sidebar-item-icon {
+            font-size: 1rem;
+            width: 22px;
+            text-align: center;
+        }
+
+        .sidebar-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 0;
+        }
+
+        .services-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .service-chip {
+            font-size: 0.62rem;
+            padding: 4px 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .architecture-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .architecture-item-icon {
+            width: 28px;
+            height: 28px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+        }
+
+        /* ─── Chat Area ─── */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-secondary);
+        }
+
+        .chat-header {
+            padding: 18px 28px;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .chat-header-avatar {
+            width: 38px;
+            height: 38px;
+            background: var(--accent);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .chat-header-info h2 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: -0.2px;
+        }
+
+        .chat-header-info p {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            max-width: 75%;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .message.bot .message-avatar {
+            background: var(--accent);
+            color: white;
+            font-size: 0.7rem;
+        }
+
+        .message.user .message-avatar {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+        }
+
+        .message-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .message-sender {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .message-bubble {
+            padding: 14px 18px;
+            border-radius: var(--radius);
+            font-size: 0.84rem;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .message.bot .message-bubble {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        .message.user .message-bubble {
+            background: var(--accent);
+            color: #ffffff;
+            border: none;
+        }
+
+        .message-time {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+
+        /* ─── Image Preview ─── */
+        .image-preview {
+            max-width: 200px;
+            border-radius: 8px;
+            margin-top: 8px;
+            border: 1px solid var(--border);
+        }
+
+        /* ─── Upload Status ─── */
+        .upload-status {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 0 28px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        .upload-status.active {
+            display: flex;
+        }
+
+        .upload-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border);
+            border-top: 2px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ─── Typing Indicator ─── */
+        .typing-indicator {
+            display: none;
+            align-self: flex-start;
+            margin-left: 42px;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            padding: 14px 18px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .typing-dots span {
+            width: 7px;
+            height: 7px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+            30% { transform: translateY(-5px); opacity: 1; }
+        }
+
+        /* ─── Quick Actions ─── */
+        .quick-actions {
+            padding: 14px 28px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border);
+        }
+
+        .quick-btn {
+            padding: 8px 16px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .quick-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* ─── Input Area ─── */
+        .input-area {
+            padding: 18px 28px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border);
+        }
+
+        .upload-btn {
+            width: 44px;
+            height: 44px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            position: relative;
+        }
+
+        .upload-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--bg-primary);
+        }
+
+        .upload-btn input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            padding: 14px 20px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: all 0.15s ease;
+        }
+
+        .input-wrapper input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .input-wrapper input:focus {
+            border-color: var(--accent);
+            background: var(--bg-primary);
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .send-btn {
+            width: 46px;
+            height: 46px;
+            background: var(--accent);
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .send-btn:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .send-btn:disabled { background: var(--border); cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* ─── Footer ─── */
+        .footer {
+            text-align: center;
+            padding: 12px;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border);
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .message { max-width: 90%; }
+            .navbar { padding: 14px 16px; }
+            .chat-messages { padding: 16px; }
+            .input-area { padding: 14px 16px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <span class="nav-logo">✈️</span>
+            <span class="nav-title">AI Travel Planner</span>
+            <div class="nav-divider"></div>
+            <span class="nav-badge">20+ AWS Services</span>
+        </div>
+        <div class="nav-right">
+            <span class="status-dot"></span>
+            <span>All systems operational</span>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <h3>Capabilities</h3>
+                <div class="sidebar-item active">
+                    <span class="sidebar-item-icon">🗺️</span>
+                    <span>Trip Planning</span>
+                </div>
+                <div class="sidebar-item">
+                    <span class="sidebar-item-icon">📸</span>
+                    <span>Photo Analysis</span>
+                </div>
+                <div class="sidebar-item">
+                    <span class="sidebar-item-icon">📄</span>
+                    <span>Document Scanner</span>
+                </div>
+                <div class="sidebar-item">
+                    <span class="sidebar-item-icon">🌍</span>
+                    <span>Recommendations</span>
+                </div>
+                <div class="sidebar-item">
+                    <span class="sidebar-item-icon">🔒</span>
+                    <span>Secure Storage</span>
+                </div>
+            </div>
+
+            <hr class="sidebar-divider">
+
+            <div class="sidebar-section">
+                <h3>Powered By</h3>
+                <div class="services-grid">
+                    <span class="service-chip">Amazon Lex</span>
+                    <span class="service-chip">Bedrock</span>
+                    <span class="service-chip">Claude AI</span>
+                    <span class="service-chip">Lambda</span>
+                    <span class="service-chip">Comprehend</span>
+                    <span class="service-chip">Translate</span>
+                    <span class="service-chip">Polly</span>
+                    <span class="service-chip">S3</span>
+                    <span class="service-chip">Rekognition</span>
+                    <span class="service-chip">Textract</span>
+                    <span class="service-chip">Personalize</span>
+                    <span class="service-chip">KMS</span>
+                    <span class="service-chip">CloudWatch</span>
+                    <span class="service-chip">Guardrails</span>
+                    <span class="service-chip">API Gateway</span>
+                    <span class="service-chip">IAM</span>
+                    <span class="service-chip">Knowledge Base</span>
+                    <span class="service-chip">CloudFront</span>
+                </div>
+            </div>
+
+            <hr class="sidebar-divider">
+
+            <div class="sidebar-section">
+                <h3>Architecture</h3>
+                <div class="architecture-item">
+                    <span class="architecture-item-icon">⚡</span>
+                    <span>Serverless Infrastructure</span>
+                </div>
+                <div class="architecture-item">
+                    <span class="architecture-item-icon">🧠</span>
+                    <span>RAG + Claude 4.5 Haiku</span>
+                </div>
+                <div class="architecture-item">
+                    <span class="architecture-item-icon">📊</span>
+                    <span>Real-time Monitoring</span>
+                </div>
+                <div class="architecture-item">
+                    <span class="architecture-item-icon">🛡️</span>
+                    <span>AI Guardrails + KMS</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Chat Area -->
+        <main class="chat-area">
+            <div class="chat-header">
+                <div class="chat-header-avatar">🤖</div>
+                <div class="chat-header-info">
+                    <h2>Travel Assistant</h2>
+                    <p>Powered by Claude 4.5 Haiku • RAG Knowledge Base • 9 Phases</p>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="message bot">
+                    <div class="message-avatar">✈️</div>
+                    <div class="message-content">
+                        <span class="message-sender">AI Travel Planner</span>
+                        <div class="message-bubble">Welcome! I'm your AI-powered travel assistant built on 20+ AWS services.
+
+I can help you with:
+
+🗺️  Plan personalized trip itineraries
+📸  Analyze travel photos — use the 📎 button to upload
+📄  Extract details from travel documents
+🌍  Get AI-powered destination recommendations
+🗣️  Translate phrases to local languages
+🎧  Generate audio versions of your itinerary
+
+Where would you like to explore?</div>
+                        <span class="message-time">Just now</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="typing-dots">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+
+            <div class="upload-status" id="uploadStatus">
+                <div class="upload-spinner"></div>
+                <span id="uploadStatusText">Uploading image...</span>
+            </div>
+
+            <div class="quick-actions">
+                <span class="quick-btn" onclick="sendQuick('Plan a trip to Japan')">🇯🇵 Plan Japan Trip</span>
+                <span class="quick-btn" onclick="sendQuick('Plan a trip to Italy')">🇮🇹 Plan Italy Trip</span>
+                <span class="quick-btn" onclick="sendQuick('Plan a trip to Costa Rica')">🇨🇷 Costa Rica</span>
+                <span class="quick-btn" onclick="sendQuick('Plan a trip to Thailand')">🇹🇭 Thailand</span>
+                <span class="quick-btn" onclick="sendQuick('Get my recommendations')">🌍 My Recommendations</span>
+            </div>
+
+            <div class="input-area">
+                <div class="upload-btn" title="Upload a photo or document">
+                    📎
+                    <input type="file" id="fileInput" accept="image/*,.pdf,.jpg,.jpeg,.png" onchange="handleFileUpload(event)">
+                </div>
+                <div class="input-wrapper">
+                    <input type="text" id="userInput" placeholder="Ask me anything about travel planning..." onkeypress="if(event.key==='Enter')sendMessage()">
+                </div>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+            </div>
+        </main>
+    </div>
+
+    <div class="footer">
+        Built by Jason Dyer • Cloud Networking & Engineering Student, WGU • Powered by AWS
+    </div>
+
+    <script>
+        const API_URL = "https://us5h241qf5.execute-api.us-east-1.amazonaws.com/prod/plan";
+        const UPLOAD_URL = "https://us5h241qf5.execute-api.us-east-1.amazonaws.com/prod/upload";
+
+        function getTimestamp() {
+            return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function addMessage(text, sender, imageUrl) {
+            const messages = document.getElementById('chatMessages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = sender === 'user' ? '👤' : '✈️';
+
+            const content = document.createElement('div');
+            content.className = 'message-content';
+
+            const senderLabel = document.createElement('span');
+            senderLabel.className = 'message-sender';
+            senderLabel.textContent = sender === 'user' ? 'You' : 'AI Travel Planner';
+
+            content.appendChild(senderLabel);
+
+            if (imageUrl) {
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.className = 'image-preview';
+                content.appendChild(img);
+            }
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = text;
+
+            const time = document.createElement('span');
+            time.className = 'message-time';
+            time.textContent = getTimestamp();
+
+            content.appendChild(bubble);
+            content.appendChild(time);
+
+            msgDiv.appendChild(avatar);
+            msgDiv.appendChild(content);
+            messages.appendChild(msgDiv);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function sendQuick(text) {
+            document.getElementById('userInput').value = text;
+            sendMessage();
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const uploadStatus = document.getElementById('uploadStatus');
+            const uploadStatusText = document.getElementById('uploadStatusText');
+            const sendBtn = document.getElementById('sendBtn');
+
+            // Show upload status
+            uploadStatus.classList.add('active');
+            uploadStatusText.textContent = `Uploading ${file.name}...`;
+            sendBtn.disabled = true;
+
+            // Show image preview for the user
+            const isImage = file.type.startsWith('image/');
+            const imageUrl = isImage ? URL.createObjectURL(file) : null;
+
+            try {
+                // Convert file to base64
+                const base64 = await fileToBase64(file);
+
+                // Show user message with preview
+                if (isImage) {
+                    addMessage(`📸 Uploaded: ${file.name}`, 'user', imageUrl);
+                } else {
+                    addMessage(`📄 Uploaded: ${file.name}`, 'user');
+                }
+
+                uploadStatusText.textContent = 'Analyzing...';
+                document.getElementById('typingIndicator').style.display = 'block';
+
+                // Send to /upload endpoint — Lambda handles upload + analysis in one call
+                const response = await fetch(UPLOAD_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        fileContent: base64,
+                        contentType: file.type
+                    })
+                });
+
+                const data = await response.json();
+                const botMessage = data.message || "I've received your file but couldn't analyze it.";
+                addMessage(botMessage, 'bot');
+
+            } catch (error) {
+                addMessage("There was an error uploading your file. Please try again.", 'bot');
+            }
+
+            // Reset UI
+            uploadStatus.classList.remove('active');
+            document.getElementById('typingIndicator').style.display = 'none';
+            sendBtn.disabled = false;
+            event.target.value = '';
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            addMessage(text, 'user');
+            input.value = '';
+
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            document.getElementById('typingIndicator').style.display = 'block';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: text,
+                        userId: 'user_001'
+                    })
+                });
+
+                const data = await response.json();
+                const botMessage = data.message || data.messages?.[0]?.content || "Sorry, I couldn't process that request.";
+                addMessage(botMessage, 'bot');
+            } catch (error) {
+                addMessage("Connection error. Please check that the API endpoint is configured and try again.", 'bot');
+            }
+
+            sendBtn.disabled = false;
+            document.getElementById('typingIndicator').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
+
