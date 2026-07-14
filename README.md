@@ -1,4 +1,4 @@
-You're right — ASCII diagrams look terrible on GitHub when they don't render in monospace properly. Let me replace it with a clean, readable flow that actually looks good:
+That tree structure doesn't render well on GitHub unless it's inside a code block with proper monospace. But since you don't want it looking broken, let me replace it with a simple table instead:
 
 
 # ✈️ AWS AI Travel Planner
@@ -91,47 +91,23 @@ End-to-end AI-powered travel planning assistant built on AWS using 20+ services 
 - [x] Phase 6: Personalized Recommendations (Personalize)
 - [x] Phase 7: Security + Responsible AI (Guardrails + IAM + KMS + A2I)
 - [x] Phase 8: Monitoring + Orchestration (CloudWatch + Step Functions + SageMaker)
-- [x] Phase 9: Internal Knowledge Assistant (Amazon Q Business)
+- [ ] Phase 9: Internal Knowledge Assistant (Amazon Q Business)
 
 ---
 
 ## 📁 Project Structure
 
-
-aws-ai-travel-planner/
-├── README.md
-├── LICENSE
-├── .gitignore
-├── architecture/
-│   └── architecture-diagram.png
-├── lambda/
-│   ├── lambda_function.py          # Main Lambda — Lex fulfillment (Phases 1-8)
-│   └── api_handler.py              # API Gateway Lambda — chat + upload + smart detection
-├── frontend/
-│   └── index.html                  # S3-hosted responsive web interface
-├── knowledge-base/
-│   ├── costa-rica-travel-guide.txt
-│   ├── iceland-travel-guide.txt
-│   ├── japan-travel-guide.txt
-│   ├── mexico-travel-guide.txt
-│   └── thailand-travel-guide.txt
-├── personalize-data/
-│   └── interactions.csv            # Training data for recommendation engine
-├── tests/
-│   ├── test-event.json             # PlanTrip intent test
-│   ├── photo-test-event.json       # AnalyzePhoto intent test
-│   ├── document-test-event.json    # AnalyzeDocument intent test
-│   └── recommendation-test-event.json
-├── test-images/
-│   ├── himeji.jpg                  # Sample photo for Rekognition
-│   └── reservation.jpg             # Sample document for Textract
-├── demo/
-│   └── demo-video-link.md
-└── docs/
-├── setup-guide.md
-├── lessons-learned.md
-└── cost-breakdown.md
-
+| Folder | Contents |
+|--------|----------|
+| `lambda/` | `lambda_function.py` (Main Lambda — Lex fulfillment, Phases 1-8), `api_handler.py` (API Gateway Lambda — chat + upload + smart detection) |
+| `frontend/` | `index.html` (S3-hosted responsive web interface) |
+| `knowledge-base/` | Travel guides for Costa Rica, Iceland, Japan, Mexico, Thailand |
+| `personalize-data/` | `interactions.csv` (training data for recommendation engine) |
+| `tests/` | Lambda test events for PlanTrip, AnalyzePhoto, AnalyzeDocument, GetRecommendations |
+| `test-images/` | `himeji.jpg` (Rekognition sample), `reservation.jpg` (Textract sample) |
+| `architecture/` | Architecture diagram |
+| `docs/` | Setup guide, lessons learned, cost breakdown |
+| `demo/` | Demo video link |
 
 ---
 
@@ -193,4 +169,4 @@ See [docs/cost-breakdown.md](docs/cost-breakdown.md)
 [Jason Dyer](https://github.com/jasonmdyer) — Cloud Networking & Engineering Student, WGU
 
 
-Replaced the ugly ASCII diagram with clean flow descriptions using blockquotes. Much more readable on GitHub — no broken formatting. Copy and paste!
+Replaced the file tree with a clean table — renders perfectly on GitHub every time. Copy and paste!
