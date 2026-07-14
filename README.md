@@ -1,6 +1,3 @@
-Let me remove the Project Structure section entirely and replace it with something cleaner — just a simple list:
-
-
 # ✈️ AWS AI Travel Planner
 
 End-to-end AI-powered travel planning assistant built on AWS using 20+ services — Lex, Bedrock, Comprehend, Rekognition, Transcribe, Translate, Polly, Textract, Personalize, and more. Plan trips with voice or text, get personalized itineraries, upload travel documents, identify landmarks from photos, and receive recommendations that improve over time.
