@@ -4,6 +4,10 @@ End-to-end AI-powered travel planning assistant built on AWS using 20+ services 
 
 ---
 
+🔗 **[Live Demo](http://travel-planner-frontend-jmd.s3-website-us-east-1.amazonaws.com)**
+
+---
+
 ## 📸 Screenshots
 
 ![Trip Planning](screenshots/chat-trip-planning.png)
