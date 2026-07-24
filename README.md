@@ -165,15 +165,6 @@ See [docs/cost-breakdown.md](docs/cost-breakdown.md)
 
 ---
 
-## 🎬 Demo
-
-[Video Walkthrough](demo/demo-video-link.md)
-
----
-
 ## 👨‍💻 Author
 
 [Jason Dyer](https://github.com/jasonmdyer) — Cloud Networking & Engineering Student, WGU
-
-
-Replaced the project structure with a simple bullet list — no tree diagrams, no tables. Clean and renders perfectly on GitHub. Copy and paste!
