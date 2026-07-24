@@ -113,8 +113,8 @@ End-to-end AI-powered travel planning assistant built on AWS using 20+ services 
 
 ## 🤖 AI-Assisted Development
 
-Code Generation & Optimization: Backend Python Lambda logic was developed utilizing Amazon Q Developer to maximize development velocity.
-Code Review & Auditing: Amazon Q was leveraged to perform static analysis, identify edge cases in dictionary handling, and verify code quality before deployment.
+- Code Generation & Optimization: Backend Python Lambda logic was developed utilizing Amazon Q Developer to maximize development velocity.
+- Code Review & Auditing: Amazon Q was leveraged to perform static analysis, identify edge cases in dictionary handling, and verify code quality before deployment.
 
 ---
 
