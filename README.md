@@ -4,7 +4,8 @@ End-to-end AI-powered travel planning assistant built on AWS using 20+ services 
 
 ---
 
-🔗 **Live Demo:** _Decommissioned after validation to avoid ongoing AWS costs. Explore the [screenshots](#-screenshots), [architecture](#️-architecture), and [project phases](#-project-phases) below to see it in action._
+🔗 **Live Demo:** _Decommissioned after validation to avoid ongoing AWS costs. Explore the [screenshots](#-screenshots), [architecture](#️-architecture), and [project phases](#-project-phases) below to see it in action.
+
 ---
 
 ## 📸 Screenshots
